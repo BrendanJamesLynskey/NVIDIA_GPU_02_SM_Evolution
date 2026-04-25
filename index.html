@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVIDIA GPU 02 — Inside the SM, Streaming Multiprocessor Evolution</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-code: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #76B900;
+            --accent-dim: #76B90044;
+            --accent-glow: #76B90033;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ── Header ── */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        .hero h1 .accent {
+            color: var(--accent);
+        }
+
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Tag Pills ── */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+
+        /* ── Pipeline Flow Bar ── */
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .pipeline-arrow {
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        /* ── Slides ── */
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .slide p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .slide p strong {
+            color: var(--text-primary);
+        }
+
+        .slide ul, .slide ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .slide li {
+            margin-bottom: 0.4rem;
+        }
+
+        .slide li strong {
+            color: var(--text-primary);
+        }
+
+        /* ── Code Blocks ── */
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-block pre {
+            margin: 0;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+        }
+
+        /* Syntax highlighting (manual) */
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .dir { color: #ff7b72; }
+        .mac { color: #ffa657; }
+
+        /* ── Tables ── */
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:nth-child(even) td {
+            background: rgba(13, 17, 23, 0.5);
+        }
+
+        /* ── Diagrams ── */
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .diagram-box.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+        }
+
+        .diagram-box.dim {
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+
+        .diagram-arrow {
+            color: var(--accent);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        /* Vertical flow diagrams */
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-vertical .diagram-arrow {
+            font-size: 1.1rem;
+        }
+
+        /* Nested hierarchy diagram */
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .hierarchy-level {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .hierarchy-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .hierarchy-item.accent {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+        }
+
+        /* Grid diagram */
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .diagram-grid.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .diagram-grid.cols-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .diagram-panel.accent-border {
+            border-left: 3px solid var(--accent);
+        }
+
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .diagram-panel p, .diagram-panel ul {
+            font-size: 0.85rem;
+        }
+
+        /* ── Callout Boxes ── */
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+
+        .callout p {
+            margin-bottom: 0;
+        }
+
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+
+        /* ── Tier Visual ── */
+        .tier-visual {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .tier-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .tier-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 90px;
+            text-align: right;
+        }
+
+        .tier-fill {
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            white-space: nowrap;
+            transition: width 0.6s ease;
+        }
+
+        .tier-cost {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            min-width: 70px;
+        }
+
+        /* ── Contents list ── */
+        .contents-list {
+            list-style: none;
+            padding-left: 0;
+            counter-reset: contents;
+        }
+
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .contents-list li:last-child {
+            border-bottom: none;
+        }
+
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+
+        .contents-list a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .contents-list a:hover {
+            color: var(--accent);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .slide {
+                padding: 3rem 1rem;
+                min-height: auto;
+            }
+
+            .slide-number {
+                font-size: 3rem;
+                top: 1.5rem;
+                right: 1rem;
+            }
+
+            .slide h2 {
+                font-size: 1.5rem;
+            }
+
+            .diagram-grid.cols-2,
+            .diagram-grid.cols-3 {
+                grid-template-columns: 1fr;
+            }
+
+            .pipeline {
+                gap: 0.15rem;
+            }
+
+            .pipeline-step {
+                font-size: 0.6rem;
+                padding: 0.2rem 0.4rem;
+            }
+
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            table {
+                font-size: 0.78rem;
+            }
+
+            .tier-label {
+                min-width: 60px;
+                font-size: 0.65rem;
+            }
+
+            .tier-fill {
+                font-size: 0.6rem;
+                height: 26px;
+            }
+        }
+
+        /* ── Interactive controls (added for Local LLM series) ── */
+        .control-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .control-row label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            min-width: 180px;
+        }
+        .control-row input[type="range"] {
+            flex: 1;
+            min-width: 160px;
+            accent-color: var(--accent);
+        }
+        .control-row input[type="number"],
+        .control-row select {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 4px;
+            padding: 0.3rem 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+        .control-row .val {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 80px;
+            text-align: right;
+        }
+        .btn {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 0.4rem 0.9rem;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .btn:hover { background: rgba(118, 185, 0, 0.2); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn.secondary {
+            background: var(--bg-code);
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+        .result-box {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            margin-top: 0.75rem;
+        }
+        .result-box .line-label { color: var(--text-secondary); }
+        .result-box .line-val   { color: var(--accent); font-weight: 600; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .metric {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.6rem 0.8rem;
+            text-align: center;
+        }
+        .metric .metric-label {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .metric .metric-value {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-top: 0.2rem;
+        }
+
+        /* Canvas / SVG containers */
+        .canvas-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            overflow-x: auto;
+        }
+        .canvas-wrap canvas,
+        .canvas-wrap svg {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+
+        /* Small inline badge */
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .badge.warn  { border-color: #ffa657; color: #ffa657; background: rgba(255,166,87,0.08); }
+        .badge.bad   { border-color: #ff7b72; color: #ff7b72; background: rgba(255,123,114,0.08); }
+
+    </style>
+</head>
+<body>
+
+<header class="hero">
+    <div class="series-label">NVIDIA GPU Architectures Series — Presentation 02</div>
+    <h1>Inside the <span class="accent">SM</span> &mdash; How NVIDIA's Streaming Multiprocessor Evolved</h1>
+    <p class="subtitle">The SM is the unit-cell of every NVIDIA GPU. Trace its evolution from Pascal's symmetric 64-FP32 design to Blackwell's tensor-core-dominated, cluster-aware monster &mdash; and see why each change unlocked new model sizes.</p>
+
+    <div class="tags">
+        <span class="tag">SM</span>
+        <span class="tag">Warp scheduler</span>
+        <span class="tag">Register file</span>
+        <span class="tag">Shared memory</span>
+        <span class="tag">L1</span>
+        <span class="tag">Tensor core</span>
+        <span class="tag">TMA</span>
+        <span class="tag">Cluster</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Cores</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Schedulers</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Regs</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Shmem</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">L1</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Tensor</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">TMA</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Cluster</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We'll Cover</h2>
+    <p>Twelve slides tracing the inner architecture of NVIDIA's Streaming Multiprocessor across nine years and six generations &mdash; from Pascal's symmetric design to Blackwell's microscaling tensor cores.</p>
+    <ul class="contents-list">
+        <li><a href="#slide-01">What is an SM?</a></li>
+        <li><a href="#slide-02">Pascal SM (GP100, 2016)</a></li>
+        <li><a href="#slide-03">Volta SM (GV100, 2017)</a></li>
+        <li><a href="#slide-04">Turing SM (TU102, 2018)</a></li>
+        <li><a href="#slide-05">Ampere SM (GA100, 2020)</a></li>
+        <li><a href="#slide-06">GA10x &mdash; Consumer Ampere's Twist</a></li>
+        <li><a href="#slide-07">Hopper SM (GH100, 2022)</a></li>
+        <li><a href="#slide-08">Ada SM (AD102, 2022)</a></li>
+        <li><a href="#slide-09">Blackwell SM (B200, 2024)</a></li>
+        <li><a href="#slide-10">Resource Growth Visualised</a></li>
+        <li><a href="#slide-11">Interactive: SM Explorer</a></li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>What is an SM?</h2>
+    <p>The <strong>Streaming Multiprocessor</strong> is the unit-cell of every NVIDIA GPU. Replicate it 100&ndash;150&times; on a die, wire the copies together with an L2 crossbar and a memory controller, and you have a GPU. Everything in CUDA &mdash; threads, warps, blocks, shared memory, kernels &mdash; is defined relative to this one block.</p>
+
+    <h3>What lives inside one SM</h3>
+    <ul>
+        <li><strong>Warps</strong> &mdash; groups of 32 threads that execute together as the basic SIMT unit.</li>
+        <li><strong>Warp schedulers</strong> &mdash; per-cycle issue logic that picks ready warps and dispatches their instructions to functional units.</li>
+        <li><strong>Register file</strong> &mdash; a very large SRAM (256 KB on every modern SM) that holds per-thread state. Cheap to read; expensive to spill.</li>
+        <li><strong>Shared memory</strong> &mdash; programmer-managed scratchpad shared by every thread in a block. Banked, low-latency, configurable.</li>
+        <li><strong>L1 cache</strong> &mdash; hardware-managed cache for global memory, often unified with shared memory in the same SRAM array.</li>
+        <li><strong>FP32 / INT32 / FP64 / SFU / LD-ST units</strong> &mdash; the per-lane arithmetic and load-store pipelines.</li>
+        <li><strong>Tensor cores</strong> &mdash; matrix-multiply-accumulate engines, present from Volta onward.</li>
+    </ul>
+
+    <h3>Scale at the die level</h3>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>GPU</th><th>SM count</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>A100 (GA100)</td><td>108 enabled</td><td>128 physical, harvested for yield</td></tr>
+                <tr><td>H100 (GH100, SXM)</td><td>132 enabled</td><td>144 physical</td></tr>
+                <tr><td>B200 (Blackwell)</td><td>148 SMs/die &times; 2 dies</td><td>two reticle-limit dies on one package</td></tr>
+                <tr><td>RTX 5090 (GB202)</td><td>170 enabled</td><td>192 physical</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why this matters</div>
+        <p>Almost every architectural improvement NVIDIA has shipped since 2016 is a change <em>inside</em> the SM &mdash; a new datapath, a wider tensor core, a new memory tier, an extra scheduling level. The cross-GPU machinery (NVLink, NVSwitch, SHARP) matters at fleet scale, but the per-token compute economics live and die inside this one block.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>Pascal SM (GP100, 2016)</h2>
+    <p>Pascal &mdash; specifically the <strong>GP100</strong> die used in the P100 datacenter card &mdash; was the last NVIDIA SM <em>before</em> tensor cores. It set the template that every successor would refine.</p>
+
+    <h3>GP100 SM at a glance</h3>
+    <ul>
+        <li><strong>64 FP32 cores</strong> + <strong>32 FP64 cores</strong> &mdash; a 2:1 FP32:FP64 ratio for HPC workloads.</li>
+        <li><strong>4 warp schedulers</strong> per SM, each able to dual-issue (two independent instructions per cycle from one warp).</li>
+        <li><strong>256 KB register file</strong>.</li>
+        <li><strong>64 KB shared memory</strong> (separate from a small L1 texture cache).</li>
+        <li><strong>No tensor cores.</strong> All matrix multiplies are emitted as FP32 FMA sequences across the FP32 cores.</li>
+    </ul>
+
+    <h3>SIMT, but lock-step</h3>
+    <p>Pascal still inherited the original SIMT contract from Tesla/Fermi/Kepler: every thread in a warp shares one program counter and one call stack. Divergent branches were handled by <strong>predication and re-convergence stack</strong>, not by genuinely independent threads. Warp-synchronous code &mdash; <code>__shfl_sync</code>, ballot patterns &mdash; was correct because the hardware <em>physically</em> kept lanes stepping together.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>What Pascal did well</h4>
+            <p>Big FP64 numbers for traditional HPC. NVLink 1.0 between 8 P100s. First HBM2 in a NVIDIA part. Programmer model unchanged from Kepler/Maxwell &mdash; existing CUDA code just ran faster.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Pascal's blind spot</h4>
+            <p>No matrix engine. ResNet-50 training on a P100 cluster was state of the art in 2016, but already the FP32 cores were the bottleneck for emerging deep-learning workloads. Volta would change that completely.</p>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Reference</div>
+        <p>NVIDIA <em>Tesla P100 Whitepaper</em> (2016) is the canonical Pascal-SM reference. It documents the 64+32 layout, the four schedulers, and the 64 KB shared memory.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Volta SM (GV100, 2017)</h2>
+    <p>Volta is the largest single architectural step NVIDIA has taken since the original CUDA architecture (G80, 2006). It rewrote two things: the <strong>thread-scheduling contract</strong> and the <strong>arithmetic engine</strong>.</p>
+
+    <h3>Independent thread scheduling</h3>
+    <p>Each thread in a warp now has its <em>own</em> program counter and call stack. Divergent paths can interleave; lanes are no longer guaranteed to step together. The lock-step assumption that previously made warp-synchronous shuffles safe is now unsafe &mdash; CUDA 9 introduced explicit <code>*_sync</code> intrinsics with mask arguments to make synchronisation requirements visible. This was a foundational change: it lets fine-grained algorithms (lock-free queues, producer-consumer patterns) work correctly inside a warp.</p>
+
+    <h3>Separate INT32 and FP32 datapaths</h3>
+    <ul>
+        <li><strong>64 FP32</strong> + <strong>64 INT32</strong> + <strong>32 FP64</strong> cores per SM.</li>
+        <li>INT and FP pipelines run <em>concurrently</em>: address arithmetic (typically INT) no longer blocks FP throughput.</li>
+        <li>Real-world FP32 throughput on memory-bound kernels increased noticeably even before tensor cores got involved.</li>
+    </ul>
+
+    <h3>Tensor cores arrive</h3>
+    <p><strong>8 first-generation tensor cores per SM</strong>, each performing a <code>4&times;4&times;4</code> half-precision matrix-multiply-accumulate per cycle. Inputs FP16, accumulator FP32. NVIDIA reported &gt;100 TFLOPS of tensor throughput per V100, an order of magnitude over the FP32 cores. PyTorch's <code>autocast</code> and Apex AMP were direct responses to Volta.</p>
+
+    <h3>L1 unification</h3>
+    <p>The 128 KB SRAM array is configurable as a split between shared memory (programmer-managed) and L1 cache (hardware-managed). Common splits were 96/32 or 64/64. The 256 KB register file size set on Volta has remained constant on every successor SM.</p>
+
+    <div class="callout">
+        <div class="callout-label">Programmer impact</div>
+        <p>Volta is the first SM where naive un-tuned matmul code is dramatically slower than tensor-core code. The pressure to use cuBLAS / cuDNN / cutlass kernels &mdash; rather than hand-written FP32 kernels &mdash; dates from this generation.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>Turing SM (TU102, 2018)</h2>
+    <p>Turing is a refinement of Volta for the consumer/workstation market. It kept Volta's separated INT/FP datapaths and tensor-core layout, then added two new things and refined a third.</p>
+
+    <h3>2nd-generation tensor cores</h3>
+    <ul>
+        <li>Inputs widened to <strong>INT8</strong> and <strong>INT4</strong> as well as FP16.</li>
+        <li>INT8 was the foundation for production-deployed quantised inference (TensorRT INT8 calibration).</li>
+        <li>Throughput per tensor core unchanged in FP16; the new modes simply enable cheaper datatypes.</li>
+    </ul>
+
+    <h3>RT cores arrive</h3>
+    <p>One <strong>ray-tracing core per SM</strong>. Performs ray-AABB intersection and ray-triangle intersection in fixed-function hardware, plus BVH traversal acceleration. From the LLM perspective these are dead weight; from the graphics/visualisation/path-tracing perspective they are transformative. The point is that Turing was where NVIDIA started using the SM as a host for <em>multiple</em> kinds of fixed-function accelerator, not just the FP/INT/Tensor triad.</p>
+
+    <h3>INT/FP concurrency becomes routine</h3>
+    <p>Turing tightened the issue logic so that mixing integer addressing arithmetic with FP math is essentially free. Driver and compiler scheduling now assume the dual datapath.</p>
+
+    <h3>L1/shared</h3>
+    <p>Slightly trimmed to <strong>96 KB</strong> unified L1+shared per SM. Still configurable, but with fewer split options than Volta.</p>
+
+    <div class="callout">
+        <div class="callout-label">Why Turing matters for LLMs</div>
+        <p>INT8 inference was born here. TensorRT's INT8 path, GPTQ-style 4-bit experiments, and the long arc toward cheaper inference all start on Turing tensor cores. Compute-capability 7.5 is still a supported deployment target in 2026.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Ampere SM (GA100, 2020)</h2>
+    <p>Ampere &mdash; specifically the <strong>GA100</strong> die used in the A100 &mdash; was the SM where deep learning became the primary workload assumption. Tensor-core throughput per SM doubled, new datatypes made FP32-trained networks usable without code changes, and asynchronous data movement entered the SM proper.</p>
+
+    <h3>3rd-generation tensor cores</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>New datatypes</h4>
+            <ul>
+                <li><strong>TF32</strong> &mdash; 10-bit mantissa, 8-bit exponent, FP32-style range. Drop-in replacement for FP32 matmul, no code change.</li>
+                <li><strong>BF16</strong> &mdash; 8-bit exponent (FP32 range), 7-bit mantissa. The training datatype the rest of the industry has now standardised on.</li>
+                <li><strong>INT8 / INT4</strong> carried over from Turing.</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Structured 2:4 sparsity</h4>
+            <p>Within every group of 4 weights, 2 must be zero. The tensor core skips the zeros, doubling effective throughput at the cost of an off-line pruning pass. Free 2&times; for inference if the model retrains acceptably.</p>
+        </div>
+    </div>
+
+    <h3>FP32 doubling (datacenter version)</h3>
+    <p>Each of the SM's <strong>4 partitions</strong> can dual-issue FP32 work. Compared to Volta, peak FP32 throughput per SM doubles. GA100 keeps a balanced design: <strong>16 FP32 + 16 INT32 + 8 FP64 cores per partition</strong>, 4 third-gen tensor cores per SM total.</p>
+
+    <h3>Async copy &mdash; cp.async</h3>
+    <p>The new <code>cp.async</code> instruction issues a register-pipelined DMA from L2 directly into shared memory. The thread does <em>not</em> stall on the data path. This is the prerequisite for the software-pipelined matmul kernels that became standard in cutlass 2.x. It also previews Hopper's TMA &mdash; which formalises the same idea at the SM level rather than the warp level.</p>
+
+    <h3>L1+shared and registers</h3>
+    <ul>
+        <li><strong>192 KB</strong> unified L1+shared per SM (configurable split).</li>
+        <li><strong>256 KB</strong> register file per SM (unchanged since Volta).</li>
+        <li>4 partitions per SM; one warp scheduler per partition.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>GA10x &mdash; Consumer Ampere's Twist</h2>
+    <p>Important nuance: <em>"Ampere"</em> is two different SMs, depending on which die you're talking about. The datacenter <strong>GA100</strong> die above and the consumer <strong>GA102/GA104</strong> dies (RTX 30 series, A6000 workstation) ship a different SM partition.</p>
+
+    <h3>Same generation, different SM</h3>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Feature</th><th>GA100 (datacenter)</th><th>GA10x (consumer)</th></tr></thead>
+            <tbody>
+                <tr><td>FP32 cores per partition</td><td>16</td><td><strong>32 (doubled)</strong></td></tr>
+                <tr><td>INT32 cores per partition</td><td>16</td><td>16 (one of the FP32 datapaths is dual-purpose)</td></tr>
+                <tr><td>FP64 cores per partition</td><td>8</td><td>2 (token amount)</td></tr>
+                <tr><td>Tensor cores per SM</td><td>4 (3rd gen)</td><td>4 (3rd gen)</td></tr>
+                <tr><td>Tensor-core throughput per SM</td><td>baseline</td><td>~same FP16; no 2:4 sparsity in some SKUs</td></tr>
+                <tr><td>L1+shared per SM</td><td>192 KB</td><td>128 KB</td></tr>
+                <tr><td>RT cores</td><td>none</td><td>2nd gen, 1 per SM</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h3>What's actually going on</h3>
+    <p>On GA10x, <strong>one of the two integer datapaths in each partition is now dual-FP32</strong>. The result: for FP32-heavy graphics shaders (which never used much INT) the per-SM peak FP32 number doubles. But the tensor-core count is unchanged, so for matmul-bound LLM inference the scaling is closer to that of GA100. The "FP32 doubling" is therefore a graphics-tuned trick &mdash; great for raster shaders, less impactful for tensor-bound kernels.</p>
+
+    <div class="callout">
+        <div class="callout-label">Reading the spec sheet</div>
+        <p>When NVIDIA quotes <em>"10,752 CUDA cores"</em> on a 3090 vs <em>"6,912 CUDA cores"</em> on an A100, those numbers are not directly comparable &mdash; they count the dual-FP32 partitions separately. For tensor-bound workloads, count <strong>SMs &times; tensor-core throughput</strong>, not CUDA cores.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Hopper SM (GH100, 2022)</h2>
+    <p>Hopper is the SM that was designed <em>for</em> transformer training and serving. Four big additions, all of which are still defining features of the platform in 2026.</p>
+
+    <h3>1. 4th-generation tensor cores &mdash; FP8</h3>
+    <ul>
+        <li><strong>E4M3</strong> (4-bit exponent, 3-bit mantissa) &mdash; chosen for forward activations and weights, where dynamic range is moderate but precision matters.</li>
+        <li><strong>E5M2</strong> (5-bit exponent, 2-bit mantissa) &mdash; chosen for gradients during backward pass, where range matters more than precision.</li>
+        <li>Per-tensor scale factors are managed by NVIDIA's <strong>Transformer Engine</strong> (TE) library, which inserts cast/scale ops automatically into FP32/BF16 PyTorch graphs.</li>
+        <li>Throughput vs Ampere BF16: ~6&times; per SM.</li>
+    </ul>
+
+    <h3>2. Tensor Memory Accelerator (TMA)</h3>
+    <p>Hardware-accelerated, asynchronous, multi-dimensional memcpy. The SM submits a <strong>tile descriptor</strong> &mdash; base pointer, multi-dim extents, strides &mdash; and the TMA performs the global-to-shared (or shared-to-global) bulk copy on its own. The SM is freed; warps don't busy-wait on address arithmetic. Generalises Ampere's <code>cp.async</code> from a per-warp instruction to an SM-level engine.</p>
+
+    <h3>3. Distributed Shared Memory (DSMEM) and Thread-Block Clusters</h3>
+    <p>A new level introduced <em>between</em> the existing block and grid:</p>
+    <div class="hierarchy">
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Old</div>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item">thread</span>
+                <span class="hierarchy-item">warp</span>
+                <span class="hierarchy-item">block</span>
+                <span class="hierarchy-item accent">grid</span>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Hopper</div>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item">thread</span>
+                <span class="hierarchy-item">warp</span>
+                <span class="hierarchy-item">block</span>
+                <span class="hierarchy-item accent">cluster</span>
+                <span class="hierarchy-item accent">grid</span>
+            </div>
+        </div>
+    </div>
+    <p>Up to 16 cooperating blocks form a <strong>cluster</strong>, scheduled together on the same GPC. Blocks within a cluster can directly read each other's shared memory (DSMEM) over a fast on-die path &mdash; effectively turning a cluster into one shared-memory region 16&times; bigger than a single block's. Used by attention and large-tile matmul kernels to keep tiles fully on-chip.</p>
+
+    <h3>4. DPX instructions</h3>
+    <p>New per-SM instructions for dynamic-programming inner loops &mdash; <em>min-of-min-plus-cost</em> patterns of the kind found in Smith&ndash;Waterman alignment and Floyd&ndash;Warshall shortest paths. Niche but pulled the bioinformatics / route-finding workloads into the SM's first-class instruction set.</p>
+
+    <h3>L1+shared and registers</h3>
+    <ul>
+        <li><strong>256 KB</strong> unified L1+shared per SM (largest yet).</li>
+        <li>256 KB register file per SM (unchanged).</li>
+        <li>4 partitions per SM; one warp scheduler per partition.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Ada SM (AD102, 2022)</h2>
+    <p>Ada is the consumer/workstation cousin of Hopper, sharing the timeline (2022) but a different SM emphasis: graphics first, then ML.</p>
+
+    <h3>4th-generation RT cores</h3>
+    <ul>
+        <li><strong>Opacity micromaps</strong> &mdash; a compact representation of which sub-triangles of a primitive are opaque, so the BVH traversal can short-circuit alpha-test queries in hardware.</li>
+        <li><strong>Displaced micro-meshes</strong> &mdash; per-triangle displacement maps stored in the BVH, allowing very dense geometry without blowing up the vertex stage.</li>
+        <li>Ray-triangle throughput approximately doubles versus Ampere RT cores.</li>
+    </ul>
+
+    <h3>4th-gen tensor cores &mdash; partial FP8</h3>
+    <p>Ada's tensor cores are listed as 4th-gen and <em>can</em> support FP8, but the path is only enabled on the workstation/datacenter SKUs <strong>L40 / L40S</strong>. On consumer RTX 40-series cards (4090, 4080, etc.) the FP8 datapath is absent or restricted. Practical consequence: a 4090 is excellent for FP16/BF16/INT8 inference, but you cannot use the same FP8 kernels as on H100/L40S without a fallback path.</p>
+
+    <h3>Big L2 is shared, not per-SM</h3>
+    <p>AD102 has a <strong>96 MB L2</strong> &mdash; nearly 16&times; larger than GA102's. This is a die-level cache, not an SM resource: every SM accesses it through the on-die crossbar. It dramatically reduces DRAM traffic for graphics workloads (and for small LLMs with KV caches that fit). It's not the same as Hopper's per-SM 256 KB L1+shared.</p>
+
+    <div class="callout">
+        <div class="callout-label">Practical buyer's note</div>
+        <p>Ada and Hopper are siblings of the same year and Compute Capability lineage but solve different problems. Ada (RTX 4090, RTX 6000 Ada, L40S) sits in workstations; Hopper (H100, H200) sits in racks. The SM looks similar from a CUDA programmer's seat but the FP8 story differs &mdash; and Hopper has TMA, DSMEM and clusters that Ada doesn't.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>Blackwell SM (B200, 2024)</h2>
+    <p>Blackwell extends Hopper's SM template rather than rewriting it. The big changes are at the tensor-core level and around the inter-die / inter-GPU plumbing.</p>
+
+    <h3>5th-generation tensor cores &mdash; microscaling FP4 and FP6</h3>
+    <ul>
+        <li><strong>MX-FP4</strong> &mdash; 4-bit floats arranged in 32-element <em>microblocks</em>. Each microblock has its own 8-bit shared scale (E8M0). The block format gives FP4 enough effective dynamic range to use as an inference datatype where naive INT4 would have failed.</li>
+        <li><strong>MX-FP6</strong> &mdash; same idea, 6-bit elements, 32-element blocks. Useful where FP4 loses too much accuracy.</li>
+        <li><strong>FP8 (E4M3, E5M2)</strong> &mdash; carried forward from Hopper.</li>
+        <li>Throughput per SM (FP8) vs Hopper: ~2.5&times;. The MX-FP4 path roughly doubles that again where applicable.</li>
+    </ul>
+
+    <h3>2nd-generation Transformer Engine</h3>
+    <p>The Transformer Engine library now manages <strong>per-microblock scaling</strong>, not just per-tensor scaling. A model can be cast to MX-FP4 weights, MX-FP4 (or FP8) activations, and FP32 master weights in framework-managed wrappers. The library decides which datatype is safe per layer.</p>
+
+    <h3>Beyond the SM &mdash; NVLink at SM granularity</h3>
+    <p>Blackwell's <strong>5th-gen NVLink</strong> raises bisection bandwidth significantly, but a more interesting change is <strong>NVLink-Sharp</strong>: SHARP-style in-network all-reduce reductions can now be triggered at SM granularity rather than at full-collective granularity. For mixture-of-experts routing (where dispatch is unstructured), this is meaningful.</p>
+
+    <h3>Reliability &mdash; RAS engine</h3>
+    <p>A new RAS engine sits at the SM/L2 boundary, providing fault isolation (so a single SM ECC failure doesn't take down a job) and richer telemetry to the management plane. It's an obvious nod to the realities of running multi-thousand-GPU jobs for weeks at a time.</p>
+
+    <h3>L1+shared and registers</h3>
+    <ul>
+        <li><strong>256 KB</strong> unified L1+shared per SM (same as Hopper).</li>
+        <li>256 KB register file per SM (unchanged since Volta).</li>
+        <li>Two reticle-limit dies per package, 148 SMs/die, joined by a 10 TB/s NVHS link presented as one logical GPU.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-number">10</div>
+    <h2>Resource Growth Visualised</h2>
+    <p>Per-SM resources across six families. Register file size has been frozen at 256 KB since Volta &mdash; the action is in shared memory, tensor-core throughput, and per-tensor-core feature width. Tensor-core throughput is normalised to V100 = 1 in the lowest precision shipped on each generation (FP16 on Volta/Turing, BF16 on Ampere/Hopper, FP8 on Blackwell).</p>
+
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 760 360" width="760" height="360" xmlns="http://www.w3.org/2000/svg">
+            <style>
+                .axis  { stroke: #21262d; }
+                .gridl { stroke: #21262d; stroke-dasharray: 3 4; }
+                .br    { fill: rgba(165,214,255,0.55); stroke: #a5d6ff; }
+                .bs    { fill: rgba(118,185,0,0.55); stroke: #76B900; }
+                .bt    { fill: rgba(210,168,255,0.55); stroke: #d2a8ff; }
+                .lbl   { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .val   { fill: #e6edf3; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; }
+                .h     { fill: #e6edf3; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; }
+                .key   { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .anno  { fill: #ffa657; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+            </style>
+            <text x="10" y="18" class="h">Per-SM resources by family (registers, shmem+L1, tensor-core throughput vs V100)</text>
+
+            <!-- Legend -->
+            <rect x="430" y="28" width="12" height="10" class="br"/><text x="446" y="37" class="key">Register file (KB)</text>
+            <rect x="560" y="28" width="12" height="10" class="bs"/><text x="576" y="37" class="key">Shmem+L1 (KB)</text>
+            <rect x="690" y="28" width="12" height="10" class="bt"/><text x="706" y="37" class="key">TC ratio</text>
+
+            <!-- Axes -->
+            <line x1="120" y1="60" x2="120" y2="320" class="axis"/>
+            <line x1="120" y1="320" x2="740" y2="320" class="axis"/>
+            <line x1="120" y1="240" x2="740" y2="240" class="gridl"/>
+            <line x1="120" y1="160" x2="740" y2="160" class="gridl"/>
+            <line x1="120" y1="80"  x2="740" y2="80"  class="gridl"/>
+            <text x="115" y="324" class="lbl" text-anchor="end">0</text>
+            <text x="115" y="244" class="lbl" text-anchor="end">128</text>
+            <text x="115" y="164" class="lbl" text-anchor="end">256</text>
+            <text x="115" y="84"  class="lbl" text-anchor="end">384</text>
+
+            <!-- Pascal group, x base 145 -->
+            <text x="170" y="338" class="lbl" text-anchor="middle">Pascal</text>
+            <text x="170" y="352" class="lbl" text-anchor="middle">GP100</text>
+            <rect x="148" y="160" width="14" height="160" class="br"/><text x="155" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="166" y="280" width="14" height="40"  class="bs"/><text x="173" y="276" class="val" text-anchor="middle">64</text>
+            <rect x="184" y="312" width="14" height="8"   class="bt"/><text x="191" y="308" class="val" text-anchor="middle">0.0</text>
+
+            <!-- Volta group, x base 245 -->
+            <text x="270" y="338" class="lbl" text-anchor="middle">Volta</text>
+            <text x="270" y="352" class="lbl" text-anchor="middle">GV100</text>
+            <rect x="248" y="160" width="14" height="160" class="br"/><text x="255" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="266" y="240" width="14" height="80"  class="bs"/><text x="273" y="236" class="val" text-anchor="middle">128</text>
+            <rect x="284" y="304" width="14" height="16"  class="bt"/><text x="291" y="300" class="val" text-anchor="middle">1.0</text>
+
+            <!-- Turing group, x base 345 -->
+            <text x="370" y="338" class="lbl" text-anchor="middle">Turing</text>
+            <text x="370" y="352" class="lbl" text-anchor="middle">TU102</text>
+            <rect x="348" y="160" width="14" height="160" class="br"/><text x="355" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="366" y="260" width="14" height="60"  class="bs"/><text x="373" y="256" class="val" text-anchor="middle">96</text>
+            <rect x="384" y="304" width="14" height="16"  class="bt"/><text x="391" y="300" class="val" text-anchor="middle">1.0</text>
+
+            <!-- Ampere group, x base 445 -->
+            <text x="470" y="338" class="lbl" text-anchor="middle">Ampere</text>
+            <text x="470" y="352" class="lbl" text-anchor="middle">GA100</text>
+            <rect x="448" y="160" width="14" height="160" class="br"/><text x="455" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="466" y="200" width="14" height="120" class="bs"/><text x="473" y="196" class="val" text-anchor="middle">192</text>
+            <rect x="484" y="256" width="14" height="64"  class="bt"/><text x="491" y="252" class="val" text-anchor="middle">4.0</text>
+
+            <!-- Hopper group, x base 545 -->
+            <text x="570" y="338" class="lbl" text-anchor="middle">Hopper</text>
+            <text x="570" y="352" class="lbl" text-anchor="middle">GH100</text>
+            <rect x="548" y="160" width="14" height="160" class="br"/><text x="555" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="566" y="160" width="14" height="160" class="bs"/><text x="573" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="584" y="224" width="14" height="96"  class="bt"/><text x="591" y="220" class="val" text-anchor="middle">24</text>
+            <text x="591" y="208" class="anno" text-anchor="middle">1st FP8</text>
+
+            <!-- Blackwell group, x base 645 -->
+            <text x="670" y="338" class="lbl" text-anchor="middle">Blackwell</text>
+            <text x="670" y="352" class="lbl" text-anchor="middle">B200</text>
+            <rect x="648" y="160" width="14" height="160" class="br"/><text x="655" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="666" y="160" width="14" height="160" class="bs"/><text x="673" y="156" class="val" text-anchor="middle">256</text>
+            <rect x="684" y="170" width="14" height="150" class="bt"/><text x="691" y="166" class="val" text-anchor="middle">60</text>
+            <text x="691" y="154" class="anno" text-anchor="middle">1st FP4</text>
+        </svg>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Reading the chart</div>
+        <p>Two stories. <strong>Storage</strong> grew steadily (shmem+L1 from 64 KB on Pascal to 256 KB on Hopper/Blackwell), then plateaued; the register file has been a constant 256 KB for seven years. <strong>Tensor-core throughput</strong>, in contrast, is a hockey-stick: each generation introduces a narrower datatype (FP16 &rarr; BF16 &rarr; FP8 &rarr; MX-FP4) that doubles or triples per-SM math without growing the SM itself. The "free lunch" of LLM inference cost reductions has come almost entirely from this column.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-11">
+    <div class="slide-number">11</div>
+    <h2>Interactive: SM Explorer</h2>
+    <p>Pick a generation; the SVG below redraws an idealised SM floorplan and the metric grid updates with that generation's headline numbers. The diagram is schematic &mdash; it shows the four partitions, the warp scheduler in each, the register file slice, the FP/INT/Tensor/SFU functional units, and the unified L1+shared block at the bottom.</p>
+
+    <div class="control-panel">
+        <div class="control-row">
+            <label for="sm-arch">SM generation</label>
+            <select id="sm-arch">
+                <option value="pascal">Pascal (GP100, 2016)</option>
+                <option value="volta">Volta (GV100, 2017)</option>
+                <option value="turing">Turing (TU102, 2018)</option>
+                <option value="ampere100" selected>Ampere (GA100, 2020)</option>
+                <option value="ada">Ada (AD102, 2022)</option>
+                <option value="hopper">Hopper (GH100, 2022)</option>
+                <option value="blackwell">Blackwell (B200, 2024)</option>
+            </select>
+        </div>
+
+        <div class="canvas-wrap">
+            <svg id="sm-svg" viewBox="0 0 600 280" width="600" height="280" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+
+        <div class="metric-grid" id="sm-metrics"></div>
+
+        <div class="result-box" id="sm-feature"></div>
+    </div>
+
+    <script>
+    (function () {
+        const data = {
+            pascal: {
+                name: 'Pascal — GP100',
+                schedulers: 4, fp32: 64, int32: 0, fp64: 32, sfu: 16,
+                tc: 0, tcGen: 'none',
+                regKB: 256, shmemL1KB: 64,
+                feature: 'No tensor cores. 2:1 FP32:FP64. 4 schedulers, 64 FP32 + 32 FP64 cores per SM.',
+                showTC: false, showINT: false, showRT: false
+            },
+            volta: {
+                name: 'Volta — GV100',
+                schedulers: 4, fp32: 64, int32: 64, fp64: 32, sfu: 16,
+                tc: 8, tcGen: '1st gen (FP16 4x4x4)',
+                regKB: 256, shmemL1KB: 128,
+                feature: 'First tensor cores. Independent thread scheduling. Separate INT32 datapath.',
+                showTC: true, showINT: true, showRT: false
+            },
+            turing: {
+                name: 'Turing — TU102',
+                schedulers: 4, fp32: 64, int32: 64, fp64: 2, sfu: 16,
+                tc: 8, tcGen: '2nd gen (FP16 / INT8 / INT4)',
+                regKB: 256, shmemL1KB: 96,
+                feature: 'INT8/INT4 tensor cores arrive. RT core per SM (graphics). INT/FP concurrent issue routine.',
+                showTC: true, showINT: true, showRT: true
+            },
+            ampere100: {
+                name: 'Ampere — GA100',
+                schedulers: 4, fp32: 64, int32: 64, fp64: 32, sfu: 16,
+                tc: 4, tcGen: '3rd gen (TF32 / BF16 / INT8 / 2:4)',
+                regKB: 256, shmemL1KB: 192,
+                feature: 'TF32 + BF16 + 2:4 structured sparsity. cp.async DMA. Datacenter-balanced partitions.',
+                showTC: true, showINT: true, showRT: false
+            },
+            ada: {
+                name: 'Ada — AD102',
+                schedulers: 4, fp32: 128, int32: 64, fp64: 2, sfu: 16,
+                tc: 4, tcGen: '4th gen (FP8 on L40S only)',
+                regKB: 256, shmemL1KB: 128,
+                feature: '4th-gen RT cores (opacity micromaps, displaced micro-meshes). FP8 limited to L40/L40S.',
+                showTC: true, showINT: true, showRT: true
+            },
+            hopper: {
+                name: 'Hopper — GH100',
+                schedulers: 4, fp32: 128, int32: 64, fp64: 64, sfu: 16,
+                tc: 4, tcGen: '4th gen (FP8 E4M3 / E5M2)',
+                regKB: 256, shmemL1KB: 256,
+                feature: 'First FP8. TMA, DSMEM, Thread-Block Clusters, DPX instructions.',
+                showTC: true, showINT: true, showRT: false
+            },
+            blackwell: {
+                name: 'Blackwell — B200',
+                schedulers: 4, fp32: 128, int32: 64, fp64: 64, sfu: 16,
+                tc: 4, tcGen: '5th gen (MX-FP4 / MX-FP6 / FP8)',
+                regKB: 256, shmemL1KB: 256,
+                feature: 'First MX-FP4 (microscaling). 2nd-gen TE, NVLink-Sharp at SM granularity, RAS engine.',
+                showTC: true, showINT: true, showRT: false
+            }
+        };
+
+        const svg = document.getElementById('sm-svg');
+        const metrics = document.getElementById('sm-metrics');
+        const feature = document.getElementById('sm-feature');
+        const sel = document.getElementById('sm-arch');
+
+        function rect(x, y, w, h, fill, stroke, label, sub) {
+            const r = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+                '" fill="' + fill + '" stroke="' + stroke + '" rx="3"/>';
+            const t1 = label ?
+                '<text x="' + (x + w/2) + '" y="' + (y + (sub ? 14 : h/2 + 4)) +
+                '" text-anchor="middle" fill="#e6edf3" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">' + label + '</text>' : '';
+            const t2 = sub ?
+                '<text x="' + (x + w/2) + '" y="' + (y + 28) +
+                '" text-anchor="middle" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="8.5">' + sub + '</text>' : '';
+            return r + t1 + t2;
+        }
+
+        function render(key) {
+            const d = data[key];
+            let s = '';
+
+            // Outer SM frame
+            s += '<rect x="6" y="6" width="588" height="268" fill="#0d1117" stroke="#21262d" rx="6"/>';
+            s += '<text x="14" y="22" fill="#76B900" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="13">' + d.name + '</text>';
+            s += '<text x="586" y="22" text-anchor="end" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="10">' +
+                 d.schedulers + ' schedulers · ' + d.regKB + ' KB regs · ' + d.shmemL1KB + ' KB L1+shmem</text>';
+
+            // 4 partitions (for all generations from Pascal onward — Pascal had 2 sub-cores but we draw 4 for consistency)
+            const px = [16, 162, 308, 454];
+            const py = 36;
+            const pw = 132;
+            const ph = 180;
+
+            const fpPerPart  = Math.round(d.fp32 / 4);
+            const intPerPart = Math.round(d.int32 / 4);
+            const fp64PerPart= Math.round(d.fp64 / 4);
+            const tcPerPart  = d.showTC ? Math.max(1, Math.round(d.tc / 4)) : 0;
+
+            for (let i = 0; i < 4; i++) {
+                const x = px[i];
+                // partition border
+                s += '<rect x="' + x + '" y="' + py + '" width="' + pw + '" height="' + ph + '" fill="#161b22" stroke="#21262d" rx="4"/>';
+                s += '<text x="' + (x + 6) + '" y="' + (py + 14) + '" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="9">Partition ' + (i + 1) + '</text>';
+
+                // warp scheduler
+                s += rect(x + 8, py + 22, pw - 16, 22, '#1a2030', '#76B900', 'Warp scheduler', '');
+
+                // register file slice
+                s += rect(x + 8, py + 50, pw - 16, 18, '#161b22', '#21262d', 'Reg file ' + Math.round(d.regKB/4) + ' KB', '');
+
+                // FP32 cores
+                s += rect(x + 8, py + 74, (pw - 24) / 2, 26, 'rgba(118,185,0,0.18)', '#76B900', fpPerPart + ' FP32', '');
+                // INT32 cores (post-Volta)
+                if (d.showINT) {
+                    s += rect(x + 8 + (pw - 24)/2 + 8, py + 74, (pw - 24) / 2, 26, 'rgba(165,214,255,0.18)', '#a5d6ff', intPerPart + ' INT32', '');
+                } else {
+                    s += rect(x + 8 + (pw - 24)/2 + 8, py + 74, (pw - 24) / 2, 26, '#161b22', '#21262d', '(no INT)', '');
+                }
+
+                // FP64 + SFU + LD/ST row
+                s += rect(x + 8, py + 106, (pw - 32)/3, 22, 'rgba(210,168,255,0.18)', '#d2a8ff', fp64PerPart + ' FP64', '');
+                s += rect(x + 8 + (pw - 32)/3 + 8, py + 106, (pw - 32)/3, 22, '#161b22', '#21262d', 'SFU', '');
+                s += rect(x + 8 + 2*((pw - 32)/3 + 8), py + 106, (pw - 32)/3, 22, '#161b22', '#21262d', 'LD/ST', '');
+
+                // tensor core (if any) — shared across partition
+                if (d.showTC && tcPerPart > 0) {
+                    s += rect(x + 8, py + 134, pw - 16, 22, 'rgba(255,166,87,0.18)', '#ffa657',
+                              tcPerPart + ' TC · ' + d.tcGen.split(' ')[0] + ' gen', '');
+                }
+
+                // RT core if applicable
+                if (d.showRT && i === 3) {
+                    s += rect(x + 8, py + 162, pw - 16, 14, 'rgba(255,123,114,0.18)', '#ff7b72', 'RT core (1 / SM)', '');
+                }
+            }
+
+            // Bottom bar — L1 + shared
+            s += rect(16, 224, 568, 22, 'rgba(118,185,0,0.10)', '#76B900',
+                      'Unified L1 + Shared memory · ' + d.shmemL1KB + ' KB', '');
+
+            // Footer hint
+            s += '<text x="300" y="266" text-anchor="middle" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="9.5">' +
+                 'Schematic — relative widths only; actual silicon layout differs.' +
+                 '</text>';
+
+            svg.innerHTML = s;
+
+            // Metrics grid
+            const cells = [
+                ['Schedulers',     d.schedulers],
+                ['FP32 cores',     d.fp32],
+                ['INT32 cores',    d.int32 || '—'],
+                ['FP64 cores',     d.fp64 || '—'],
+                ['Tensor cores',   d.tc || '—'],
+                ['TC generation',  d.tcGen],
+                ['Reg file',       d.regKB + ' KB'],
+                ['Shmem + L1',     d.shmemL1KB + ' KB']
+            ];
+            metrics.innerHTML = cells.map(c =>
+                '<div class="metric"><div class="metric-label">' + c[0] +
+                '</div><div class="metric-value" style="font-size:1rem;">' + c[1] + '</div></div>'
+            ).join('');
+
+            feature.innerHTML = '<span class="line-label">Defining feature: </span>' +
+                                '<span class="line-val">' + d.feature + '</span>';
+        }
+
+        sel.addEventListener('change', () => render(sel.value));
+        render(sel.value);
+    })();
+    </script>
+
+    <div class="callout">
+        <div class="callout-label">What the diagram does and doesn't show</div>
+        <p>This is a <strong>logical</strong> floorplan, not a physical one. The widths of FP32 vs INT32 vs tensor-core boxes are scaled to give each its share of the partition; on real silicon the tensor core is far larger than its outline suggests, and the register file is interleaved with the math units rather than sitting in a single slab. The point of the picture is to show <em>which units are present</em> in each generation and how they are grouped into the four partitions that have remained the SM's organising structure since Volta.</p>
+    </div>
+</section>
+
+<!-- ════════════════════════════════════ Footer ════════════════════════════════════ -->
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLMs#nvidia-gpu-architectures">NVIDIA GPU Architectures Series</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://github.com/BrendanJamesLynskey/LLMs#nvidia-gpu-architectures">Back to Series Index</a></p>
+</footer>
+
+<script>
+    // Smooth scroll for TOC links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    // Subtle fade-in on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+
+</body>
+</html>
