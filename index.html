@@ -854,7 +854,7 @@
     <h3>GP100 SM at a glance</h3>
     <ul>
         <li><strong>64 FP32 cores</strong> + <strong>32 FP64 cores</strong> &mdash; a 2:1 FP32:FP64 ratio for HPC workloads.</li>
-        <li><strong>4 warp schedulers</strong> per SM, each able to dual-issue (two independent instructions per cycle from one warp).</li>
+        <li><strong>2 warp schedulers</strong> per SM (one per 32-core processing block), each able to dual-issue (two independent instructions per cycle from one warp).</li>
         <li><strong>256 KB register file</strong>.</li>
         <li><strong>64 KB shared memory</strong> (separate from a small L1 texture cache).</li>
         <li><strong>No tensor cores.</strong> All matrix multiplies are emitted as FP32 FMA sequences across the FP32 cores.</li>
@@ -876,7 +876,7 @@
 
     <div class="callout">
         <div class="callout-label">Reference</div>
-        <p>NVIDIA <em>Tesla P100 Whitepaper</em> (2016) is the canonical Pascal-SM reference. It documents the 64+32 layout, the four schedulers, and the 64 KB shared memory.</p>
+        <p>NVIDIA <em>Tesla P100 Whitepaper</em> (2016) is the canonical Pascal-SM reference. It documents the 64+32 layout, the two dual-issue schedulers, and the 64 KB shared memory.</p>
     </div>
 </section>
 
@@ -955,8 +955,8 @@
         </div>
     </div>
 
-    <h3>FP32 doubling (datacenter version)</h3>
-    <p>Each of the SM's <strong>4 partitions</strong> can dual-issue FP32 work. Compared to Volta, peak FP32 throughput per SM doubles. GA100 keeps a balanced design: <strong>16 FP32 + 16 INT32 + 8 FP64 cores per partition</strong>, 4 third-gen tensor cores per SM total.</p>
+    <h3>Balanced datacenter partitions</h3>
+    <p>GA100 keeps Volta's balanced layout: each of the SM's <strong>4 partitions</strong> has <strong>16 FP32 + 16 INT32 + 8 FP64 cores</strong>, with 1 third-gen tensor core per partition (4 per SM total). Peak FP32 throughput per SM is therefore the same as V100 &mdash; the per-SM math gain is in the wider, denser tensor cores, not in the FP32 lane count. The "FP32 doubling" trick is GA10x-only (next slide).</p>
 
     <h3>Async copy &mdash; cp.async</h3>
     <p>The new <code>cp.async</code> instruction issues a register-pipelined DMA from L2 directly into shared memory. The thread does <em>not</em> stall on the data path. This is the prerequisite for the software-pipelined matmul kernels that became standard in cutlass 2.x. It also previews Hopper's TMA &mdash; which formalises the same idea at the SM level rather than the warp level.</p>
@@ -1063,8 +1063,8 @@
         <li>Ray-triangle throughput approximately doubles versus Ampere RT cores.</li>
     </ul>
 
-    <h3>4th-gen tensor cores &mdash; partial FP8</h3>
-    <p>Ada's tensor cores are listed as 4th-gen and <em>can</em> support FP8, but the path is only enabled on the workstation/datacenter SKUs <strong>L40 / L40S</strong>. On consumer RTX 40-series cards (4090, 4080, etc.) the FP8 datapath is absent or restricted. Practical consequence: a 4090 is excellent for FP16/BF16/INT8 inference, but you cannot use the same FP8 kernels as on H100/L40S without a fallback path.</p>
+    <h3>4th-gen tensor cores &mdash; FP8</h3>
+    <p>Ada's tensor cores are 4th-generation and support <strong>FP8 (E4M3, E5M2)</strong> across the whole family &mdash; consumer (RTX 4090, 4080, etc.) and workstation/datacenter (RTX 6000 Ada, L40, L40S) alike (compute capability 8.9). What Ada lacks vs Hopper is not FP8 itself but Hopper's surrounding plumbing: no TMA, no thread-block clusters / DSMEM, no second-gen Transformer Engine of the Hopper kind, and a smaller datacenter-scale memory subsystem. A 4090 happily runs FP8 kernels; what it doesn't run are Hopper-specific cluster/TMA kernels.</p>
 
     <h3>Big L2 is shared, not per-SM</h3>
     <p>AD102 has a <strong>96 MB L2</strong> &mdash; nearly 16&times; larger than GA102's. This is a die-level cache, not an SM resource: every SM accesses it through the on-die crossbar. It dramatically reduces DRAM traffic for graphics workloads (and for small LLMs with KV caches that fit). It's not the same as Hopper's per-SM 256 KB L1+shared.</p>
@@ -1082,10 +1082,11 @@
 
     <h3>5th-generation tensor cores &mdash; microscaling FP4 and FP6</h3>
     <ul>
-        <li><strong>MX-FP4</strong> &mdash; 4-bit floats arranged in 32-element <em>microblocks</em>. Each microblock has its own 8-bit shared scale (E8M0). The block format gives FP4 enough effective dynamic range to use as an inference datatype where naive INT4 would have failed.</li>
-        <li><strong>MX-FP6</strong> &mdash; same idea, 6-bit elements, 32-element blocks. Useful where FP4 loses too much accuracy.</li>
+        <li><strong>MX-FP4</strong> (open OCP standard) &mdash; 4-bit floats arranged in 32-element <em>microblocks</em>, each with an 8-bit shared scale (E8M0).</li>
+        <li><strong>NVFP4</strong> (NVIDIA variant) &mdash; finer 16-element blocks with an FP8 E4M3 scale plus a per-tensor FP32 scale. More accurate than MX-FP4 and the default FP4 datatype in TensorRT-LLM and the Transformer Engine.</li>
+        <li><strong>MX-FP6</strong> &mdash; same OCP block idea, 6-bit elements, 32-element blocks. Useful where FP4 loses too much accuracy.</li>
         <li><strong>FP8 (E4M3, E5M2)</strong> &mdash; carried forward from Hopper.</li>
-        <li>Throughput per SM (FP8) vs Hopper: ~2.5&times;. The MX-FP4 path roughly doubles that again where applicable.</li>
+        <li>Throughput per SM (FP8) vs Hopper: ~2.5&times;. The FP4 path roughly doubles that again where applicable.</li>
     </ul>
 
     <h3>2nd-generation Transformer Engine</h3>
@@ -1190,7 +1191,7 @@
 
     <div class="callout">
         <div class="callout-label">Reading the chart</div>
-        <p>Two stories. <strong>Storage</strong> grew steadily (shmem+L1 from 64 KB on Pascal to 256 KB on Hopper/Blackwell), then plateaued; the register file has been a constant 256 KB for seven years. <strong>Tensor-core throughput</strong>, in contrast, is a hockey-stick: each generation introduces a narrower datatype (FP16 &rarr; BF16 &rarr; FP8 &rarr; MX-FP4) that doubles or triples per-SM math without growing the SM itself. The "free lunch" of LLM inference cost reductions has come almost entirely from this column.</p>
+        <p>Two stories. <strong>Storage</strong> grew steadily (shmem+L1 from 64 KB on Pascal to 256 KB on Hopper/Blackwell), then plateaued; the register file has been a constant 256 KB for seven years. <strong>Tensor-core throughput</strong>, in contrast, is a hockey-stick: each generation introduces a narrower datatype (FP16 &rarr; BF16 &rarr; FP8 &rarr; MX-FP4) that doubles or triples per-SM math without growing the SM itself. (Blackwell supports both MX-FP4 and NVFP4.) The "free lunch" of LLM inference cost reductions has come almost entirely from this column.</p>
     </div>
 </section>
 
@@ -1227,10 +1228,10 @@
         const data = {
             pascal: {
                 name: 'Pascal — GP100',
-                schedulers: 4, fp32: 64, int32: 0, fp64: 32, sfu: 16,
+                schedulers: 2, fp32: 64, int32: 0, fp64: 32, sfu: 16,
                 tc: 0, tcGen: 'none',
                 regKB: 256, shmemL1KB: 64,
-                feature: 'No tensor cores. 2:1 FP32:FP64. 4 schedulers, 64 FP32 + 32 FP64 cores per SM.',
+                feature: 'No tensor cores. 2:1 FP32:FP64. 2 dual-issue schedulers, 64 FP32 + 32 FP64 cores per SM.',
                 showTC: false, showINT: false, showRT: false
             },
             volta: {
@@ -1260,9 +1261,9 @@
             ada: {
                 name: 'Ada — AD102',
                 schedulers: 4, fp32: 128, int32: 64, fp64: 2, sfu: 16,
-                tc: 4, tcGen: '4th gen (FP8 on L40S only)',
+                tc: 4, tcGen: '4th gen (FP8 E4M3 / E5M2)',
                 regKB: 256, shmemL1KB: 128,
-                feature: '4th-gen RT cores (opacity micromaps, displaced micro-meshes). FP8 limited to L40/L40S.',
+                feature: '4th-gen RT cores (opacity micromaps, displaced micro-meshes). FP8 across the family (CC 8.9). No TMA / clusters / DSMEM.',
                 showTC: true, showINT: true, showRT: true
             },
             hopper: {
@@ -1276,9 +1277,9 @@
             blackwell: {
                 name: 'Blackwell — B200',
                 schedulers: 4, fp32: 128, int32: 64, fp64: 64, sfu: 16,
-                tc: 4, tcGen: '5th gen (MX-FP4 / MX-FP6 / FP8)',
+                tc: 4, tcGen: '5th gen (MX-FP4 / NVFP4 / MX-FP6 / FP8)',
                 regKB: 256, shmemL1KB: 256,
-                feature: 'First MX-FP4 (microscaling). 2nd-gen TE, NVLink-Sharp at SM granularity, RAS engine.',
+                feature: 'First FP4 (MX-FP4 + NVFP4 microscaling). 2nd-gen TE, NVLink-Sharp at SM granularity, RAS engine.',
                 showTC: true, showINT: true, showRT: false
             }
         };
