@@ -9,15 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #0a0a0a;
-            --bg-card: #0d1117;
-            --bg-code: #161b22;
-            --text-primary: #e6edf3;
-            --text-secondary: #8b949e;
-            --accent: #76B900;
-            --accent-dim: #76B90044;
-            --accent-glow: #76B90033;
-            --border: #21262d;
+            --bg-primary: #1b1b1a;
+            --bg-card: #212120;
+            --bg-code: #292928;
+            --text-primary: #edede7;
+            --text-secondary: #9b9b95;
+            --accent: #b8b315;
+            --accent-dim: #b8b31544;
+            --accent-glow: #b8b31533;
+            --border: #363633;
             --font-display: 'Space Grotesk', sans-serif;
             --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
             --font-body: 'Inter', sans-serif;
@@ -228,7 +228,7 @@
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(184,179,21,0.08);
             padding: 0.4rem 1rem;
             border-bottom: 1px solid var(--border);
         }
@@ -243,18 +243,18 @@
             font-family: var(--font-mono);
             font-size: 0.85rem;
             line-height: 1.6;
-            color: #c9d1d9;
+            color: #d5d5cf;
         }
 
         /* Syntax highlighting (manual) */
-        .kw { color: #ff7b72; }
-        .fn { color: #d2a8ff; }
-        .str { color: #a5d6ff; }
-        .cm { color: #8b949e; font-style: italic; }
-        .num { color: #79c0ff; }
-        .type { color: #ffa657; }
-        .dir { color: #ff7b72; }
-        .mac { color: #ffa657; }
+        .kw { color: #e57d63; }
+        .fn { color: #d1c2e1; }
+        .str { color: #c9dbe2; }
+        .cm { color: #9b9b95; font-style: italic; }
+        .num { color: #afcbd8; }
+        .type { color: #e0b172; }
+        .dir { color: #e57d63; }
+        .mac { color: #e0b172; }
 
         /* ── Tables ── */
         .table-wrap {
@@ -292,7 +292,7 @@
         }
 
         tr:nth-child(even) td {
-            background: rgba(13, 17, 23, 0.5);
+            background: rgba(33,33,32,0.5);
         }
 
         /* ── Diagrams ── */
@@ -324,7 +324,7 @@
         .diagram-box.accent {
             border-color: var(--accent);
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(184,179,21,0.08);
         }
 
         .diagram-box.dim {
@@ -400,7 +400,7 @@
         .hierarchy-item.accent {
             border-color: var(--accent);
             color: var(--accent);
-            background: rgba(118, 185, 0, 0.08);
+            background: rgba(184,179,21,0.08);
         }
 
         /* Grid diagram */
@@ -673,7 +673,7 @@
             cursor: pointer;
             transition: background 0.15s ease;
         }
-        .btn:hover { background: rgba(118, 185, 0, 0.2); }
+        .btn:hover { background: rgba(184,179,21,0.2); }
         .btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .btn.secondary {
             background: var(--bg-code);
@@ -750,8 +750,8 @@
             margin-left: 0.3rem;
         }
         .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
-        .badge.warn  { border-color: #ffa657; color: #ffa657; background: rgba(255,166,87,0.08); }
-        .badge.bad   { border-color: #ff7b72; color: #ff7b72; background: rgba(255,123,114,0.08); }
+        .badge.warn  { border-color: #e0b172; color: #e0b172; background: rgba(224,177,114,0.08); }
+        .badge.bad   { border-color: #e57d63; color: #e57d63; background: rgba(229,125,99,0.08); }
 
     </style>
 </head>
@@ -1114,16 +1114,16 @@
     <div class="canvas-wrap">
         <svg viewBox="0 0 760 360" width="760" height="360" xmlns="http://www.w3.org/2000/svg">
             <style>
-                .axis  { stroke: #21262d; }
-                .gridl { stroke: #21262d; stroke-dasharray: 3 4; }
-                .br    { fill: rgba(165,214,255,0.55); stroke: #a5d6ff; }
-                .bs    { fill: rgba(118,185,0,0.55); stroke: #76B900; }
-                .bt    { fill: rgba(210,168,255,0.55); stroke: #d2a8ff; }
-                .lbl   { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
-                .val   { fill: #e6edf3; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; }
-                .h     { fill: #e6edf3; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; }
-                .key   { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
-                .anno  { fill: #ffa657; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+                .axis  { stroke: #363633; }
+                .gridl { stroke: #363633; stroke-dasharray: 3 4; }
+                .br    { fill: rgba(201,219,226,0.55); stroke: #c9dbe2; }
+                .bs    { fill: rgba(184,179,21,0.55); stroke: #b8b315; }
+                .bt    { fill: rgba(209,194,225,0.55); stroke: #d1c2e1; }
+                .lbl   { fill: #9b9b95; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .val   { fill: #edede7; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; }
+                .h     { fill: #edede7; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; }
+                .key   { fill: #9b9b95; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .anno  { fill: #e0b172; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
             </style>
             <text x="10" y="18" class="h">Per-SM resources by family (registers, shmem+L1, tensor-core throughput vs V100)</text>
 
@@ -1294,10 +1294,10 @@
                 '" fill="' + fill + '" stroke="' + stroke + '" rx="3"/>';
             const t1 = label ?
                 '<text x="' + (x + w/2) + '" y="' + (y + (sub ? 14 : h/2 + 4)) +
-                '" text-anchor="middle" fill="#e6edf3" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">' + label + '</text>' : '';
+                '" text-anchor="middle" fill="#edede7" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">' + label + '</text>' : '';
             const t2 = sub ?
                 '<text x="' + (x + w/2) + '" y="' + (y + 28) +
-                '" text-anchor="middle" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="8.5">' + sub + '</text>' : '';
+                '" text-anchor="middle" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="8.5">' + sub + '</text>' : '';
             return r + t1 + t2;
         }
 
@@ -1306,9 +1306,9 @@
             let s = '';
 
             // Outer SM frame
-            s += '<rect x="6" y="6" width="588" height="268" fill="#0d1117" stroke="#21262d" rx="6"/>';
-            s += '<text x="14" y="22" fill="#76B900" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="13">' + d.name + '</text>';
-            s += '<text x="586" y="22" text-anchor="end" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="10">' +
+            s += '<rect x="6" y="6" width="588" height="268" fill="#212120" stroke="#363633" rx="6"/>';
+            s += '<text x="14" y="22" fill="#b8b315" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="13">' + d.name + '</text>';
+            s += '<text x="586" y="22" text-anchor="end" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="10">' +
                  d.schedulers + ' schedulers · ' + d.regKB + ' KB regs · ' + d.shmemL1KB + ' KB L1+shmem</text>';
 
             // 4 partitions (for all generations from Pascal onward — Pascal had 2 sub-cores but we draw 4 for consistency)
@@ -1325,47 +1325,47 @@
             for (let i = 0; i < 4; i++) {
                 const x = px[i];
                 // partition border
-                s += '<rect x="' + x + '" y="' + py + '" width="' + pw + '" height="' + ph + '" fill="#161b22" stroke="#21262d" rx="4"/>';
-                s += '<text x="' + (x + 6) + '" y="' + (py + 14) + '" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="9">Partition ' + (i + 1) + '</text>';
+                s += '<rect x="' + x + '" y="' + py + '" width="' + pw + '" height="' + ph + '" fill="#292928" stroke="#363633" rx="4"/>';
+                s += '<text x="' + (x + 6) + '" y="' + (py + 14) + '" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="9">Partition ' + (i + 1) + '</text>';
 
                 // warp scheduler
-                s += rect(x + 8, py + 22, pw - 16, 22, '#1a2030', '#76B900', 'Warp scheduler', '');
+                s += rect(x + 8, py + 22, pw - 16, 22, '#30302e', '#b8b315', 'Warp scheduler', '');
 
                 // register file slice
-                s += rect(x + 8, py + 50, pw - 16, 18, '#161b22', '#21262d', 'Reg file ' + Math.round(d.regKB/4) + ' KB', '');
+                s += rect(x + 8, py + 50, pw - 16, 18, '#292928', '#363633', 'Reg file ' + Math.round(d.regKB/4) + ' KB', '');
 
                 // FP32 cores
-                s += rect(x + 8, py + 74, (pw - 24) / 2, 26, 'rgba(118,185,0,0.18)', '#76B900', fpPerPart + ' FP32', '');
+                s += rect(x + 8, py + 74, (pw - 24) / 2, 26, 'rgba(184,179,21,0.18)', '#b8b315', fpPerPart + ' FP32', '');
                 // INT32 cores (post-Volta)
                 if (d.showINT) {
-                    s += rect(x + 8 + (pw - 24)/2 + 8, py + 74, (pw - 24) / 2, 26, 'rgba(165,214,255,0.18)', '#a5d6ff', intPerPart + ' INT32', '');
+                    s += rect(x + 8 + (pw - 24)/2 + 8, py + 74, (pw - 24) / 2, 26, 'rgba(201,219,226,0.18)', '#c9dbe2', intPerPart + ' INT32', '');
                 } else {
-                    s += rect(x + 8 + (pw - 24)/2 + 8, py + 74, (pw - 24) / 2, 26, '#161b22', '#21262d', '(no INT)', '');
+                    s += rect(x + 8 + (pw - 24)/2 + 8, py + 74, (pw - 24) / 2, 26, '#292928', '#363633', '(no INT)', '');
                 }
 
                 // FP64 + SFU + LD/ST row
-                s += rect(x + 8, py + 106, (pw - 32)/3, 22, 'rgba(210,168,255,0.18)', '#d2a8ff', fp64PerPart + ' FP64', '');
-                s += rect(x + 8 + (pw - 32)/3 + 8, py + 106, (pw - 32)/3, 22, '#161b22', '#21262d', 'SFU', '');
-                s += rect(x + 8 + 2*((pw - 32)/3 + 8), py + 106, (pw - 32)/3, 22, '#161b22', '#21262d', 'LD/ST', '');
+                s += rect(x + 8, py + 106, (pw - 32)/3, 22, 'rgba(209,194,225,0.18)', '#d1c2e1', fp64PerPart + ' FP64', '');
+                s += rect(x + 8 + (pw - 32)/3 + 8, py + 106, (pw - 32)/3, 22, '#292928', '#363633', 'SFU', '');
+                s += rect(x + 8 + 2*((pw - 32)/3 + 8), py + 106, (pw - 32)/3, 22, '#292928', '#363633', 'LD/ST', '');
 
                 // tensor core (if any) — shared across partition
                 if (d.showTC && tcPerPart > 0) {
-                    s += rect(x + 8, py + 134, pw - 16, 22, 'rgba(255,166,87,0.18)', '#ffa657',
+                    s += rect(x + 8, py + 134, pw - 16, 22, 'rgba(224,177,114,0.18)', '#e0b172',
                               tcPerPart + ' TC · ' + d.tcGen.split(' ')[0] + ' gen', '');
                 }
 
                 // RT core if applicable
                 if (d.showRT && i === 3) {
-                    s += rect(x + 8, py + 162, pw - 16, 14, 'rgba(255,123,114,0.18)', '#ff7b72', 'RT core (1 / SM)', '');
+                    s += rect(x + 8, py + 162, pw - 16, 14, 'rgba(229,125,99,0.18)', '#e57d63', 'RT core (1 / SM)', '');
                 }
             }
 
             // Bottom bar — L1 + shared
-            s += rect(16, 224, 568, 22, 'rgba(118,185,0,0.10)', '#76B900',
+            s += rect(16, 224, 568, 22, 'rgba(184,179,21,0.10)', '#b8b315',
                       'Unified L1 + Shared memory · ' + d.shmemL1KB + ' KB', '');
 
             // Footer hint
-            s += '<text x="300" y="266" text-anchor="middle" fill="#8b949e" font-family="JetBrains Mono, monospace" font-size="9.5">' +
+            s += '<text x="300" y="266" text-anchor="middle" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="9.5">' +
                  'Schematic — relative widths only; actual silicon layout differs.' +
                  '</text>';
 
