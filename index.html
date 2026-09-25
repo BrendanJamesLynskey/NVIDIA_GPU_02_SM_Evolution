@@ -6,7 +6,7 @@
     <title>NVIDIA GPU 02 — Inside the SM, Streaming Multiprocessor Evolution</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;1,400;1,700&family=Roboto+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #1b1b1a;
@@ -18,9 +18,9 @@
             --accent-dim: #b8b31544;
             --accent-glow: #b8b31533;
             --border: #363633;
-            --font-display: 'Space Grotesk', sans-serif;
-            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-            --font-body: 'Inter', sans-serif;
+            --font-display: 'Chakra Petch', sans-serif;
+            --font-mono: 'Roboto Mono', 'Roboto Mono', monospace;
+            --font-body: 'Titillium Web', sans-serif;
             --max-width: 900px;
         }
 
@@ -1119,11 +1119,11 @@
                 .br    { fill: rgba(201,219,226,0.55); stroke: #c9dbe2; }
                 .bs    { fill: rgba(184,179,21,0.55); stroke: #b8b315; }
                 .bt    { fill: rgba(209,194,225,0.55); stroke: #d1c2e1; }
-                .lbl   { fill: #9b9b95; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
-                .val   { fill: #edede7; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; }
-                .h     { fill: #edede7; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; }
-                .key   { fill: #9b9b95; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
-                .anno  { fill: #e0b172; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; }
+                .lbl   { fill: #9b9b95; font-family: 'Roboto Mono', monospace; font-size: 10px; }
+                .val   { fill: #edede7; font-family: 'Roboto Mono', monospace; font-size: 9.5px; }
+                .h     { fill: #edede7; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 13px; }
+                .key   { fill: #9b9b95; font-family: 'Roboto Mono', monospace; font-size: 10px; }
+                .anno  { fill: #e0b172; font-family: 'Roboto Mono', monospace; font-size: 10px; font-weight: 700; }
             </style>
             <text x="10" y="18" class="h">Per-SM resources by family (registers, shmem+L1, tensor-core throughput vs V100)</text>
 
@@ -1294,10 +1294,10 @@
                 '" fill="' + fill + '" stroke="' + stroke + '" rx="3"/>';
             const t1 = label ?
                 '<text x="' + (x + w/2) + '" y="' + (y + (sub ? 14 : h/2 + 4)) +
-                '" text-anchor="middle" fill="#edede7" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600">' + label + '</text>' : '';
+                '" text-anchor="middle" fill="#edede7" font-family="Roboto Mono, monospace" font-size="10" font-weight="600">' + label + '</text>' : '';
             const t2 = sub ?
                 '<text x="' + (x + w/2) + '" y="' + (y + 28) +
-                '" text-anchor="middle" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="8.5">' + sub + '</text>' : '';
+                '" text-anchor="middle" fill="#9b9b95" font-family="Roboto Mono, monospace" font-size="8.5">' + sub + '</text>' : '';
             return r + t1 + t2;
         }
 
@@ -1307,8 +1307,8 @@
 
             // Outer SM frame
             s += '<rect x="6" y="6" width="588" height="268" fill="#212120" stroke="#363633" rx="6"/>';
-            s += '<text x="14" y="22" fill="#b8b315" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="13">' + d.name + '</text>';
-            s += '<text x="586" y="22" text-anchor="end" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="10">' +
+            s += '<text x="14" y="22" fill="#b8b315" font-family="Chakra Petch, sans-serif" font-weight="600" font-size="13">' + d.name + '</text>';
+            s += '<text x="586" y="22" text-anchor="end" fill="#9b9b95" font-family="Roboto Mono, monospace" font-size="10">' +
                  d.schedulers + ' schedulers · ' + d.regKB + ' KB regs · ' + d.shmemL1KB + ' KB L1+shmem</text>';
 
             // 4 partitions (for all generations from Pascal onward — Pascal had 2 sub-cores but we draw 4 for consistency)
@@ -1326,7 +1326,7 @@
                 const x = px[i];
                 // partition border
                 s += '<rect x="' + x + '" y="' + py + '" width="' + pw + '" height="' + ph + '" fill="#292928" stroke="#363633" rx="4"/>';
-                s += '<text x="' + (x + 6) + '" y="' + (py + 14) + '" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="9">Partition ' + (i + 1) + '</text>';
+                s += '<text x="' + (x + 6) + '" y="' + (py + 14) + '" fill="#9b9b95" font-family="Roboto Mono, monospace" font-size="9">Partition ' + (i + 1) + '</text>';
 
                 // warp scheduler
                 s += rect(x + 8, py + 22, pw - 16, 22, '#30302e', '#b8b315', 'Warp scheduler', '');
@@ -1365,7 +1365,7 @@
                       'Unified L1 + Shared memory · ' + d.shmemL1KB + ' KB', '');
 
             // Footer hint
-            s += '<text x="300" y="266" text-anchor="middle" fill="#9b9b95" font-family="JetBrains Mono, monospace" font-size="9.5">' +
+            s += '<text x="300" y="266" text-anchor="middle" fill="#9b9b95" font-family="Roboto Mono, monospace" font-size="9.5">' +
                  'Schematic — relative widths only; actual silicon layout differs.' +
                  '</text>';
 
