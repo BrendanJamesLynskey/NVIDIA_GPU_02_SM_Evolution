@@ -834,7 +834,7 @@
             <tbody>
                 <tr><td>A100 (GA100)</td><td>108 enabled</td><td>128 physical, harvested for yield</td></tr>
                 <tr><td>H100 (GH100, SXM)</td><td>132 enabled</td><td>144 physical</td></tr>
-                <tr><td>B200 (Blackwell)</td><td>148 SMs/die &times; 2 dies</td><td>two reticle-limit dies on one package</td></tr>
+                <tr><td>B200 (Blackwell)</td><td>148 enabled (80 physical per die &times; 2 dies)</td><td>two reticle-limit dies on one package</td></tr>
                 <tr><td>RTX 5090 (GB202)</td><td>170 enabled</td><td>192 physical</td></tr>
             </tbody>
         </table>
@@ -983,7 +983,7 @@
                 <tr><td>INT32 cores per partition</td><td>16</td><td>16 (one of the FP32 datapaths is dual-purpose)</td></tr>
                 <tr><td>FP64 cores per partition</td><td>8</td><td>2 (token amount)</td></tr>
                 <tr><td>Tensor cores per SM</td><td>4 (3rd gen)</td><td>4 (3rd gen)</td></tr>
-                <tr><td>Tensor-core throughput per SM</td><td>baseline</td><td>~same FP16; no 2:4 sparsity in some SKUs</td></tr>
+                <tr><td>Tensor-core throughput per SM</td><td>baseline</td><td>half of GA100's FP16 rate per SM (1024 vs 2048 FLOP/clk); 2:4 sparsity supported</td></tr>
                 <tr><td>L1+shared per SM</td><td>192 KB</td><td>128 KB</td></tr>
                 <tr><td>RT cores</td><td>none</td><td>2nd gen, 1 per SM</td></tr>
             </tbody>
@@ -995,7 +995,7 @@
 
     <div class="callout">
         <div class="callout-label">Reading the spec sheet</div>
-        <p>When NVIDIA quotes <em>"10,752 CUDA cores"</em> on a 3090 vs <em>"6,912 CUDA cores"</em> on an A100, those numbers are not directly comparable &mdash; they count the dual-FP32 partitions separately. For tensor-bound workloads, count <strong>SMs &times; tensor-core throughput</strong>, not CUDA cores.</p>
+        <p>When NVIDIA quotes <em>"10,496 CUDA cores"</em> on a 3090 vs <em>"6,912 CUDA cores"</em> on an A100, those numbers are not directly comparable &mdash; they count the dual-FP32 partitions separately. For tensor-bound workloads, count <strong>SMs &times; tensor-core throughput</strong>, not CUDA cores.</p>
     </div>
 </section>
 
@@ -1009,7 +1009,7 @@
         <li><strong>E4M3</strong> (4-bit exponent, 3-bit mantissa) &mdash; chosen for forward activations and weights, where dynamic range is moderate but precision matters.</li>
         <li><strong>E5M2</strong> (5-bit exponent, 2-bit mantissa) &mdash; chosen for gradients during backward pass, where range matters more than precision.</li>
         <li>Per-tensor scale factors are managed by NVIDIA's <strong>Transformer Engine</strong> (TE) library, which inserts cast/scale ops automatically into FP32/BF16 PyTorch graphs.</li>
-        <li>Throughput vs Ampere BF16: ~6&times; per SM.</li>
+        <li>Throughput vs Ampere BF16: 4&times; per SM per clock (~6&times; chip-to-chip with more SMs and higher clocks).</li>
     </ul>
 
     <h3>2. Tensor Memory Accelerator (TMA)</h3>
@@ -1056,7 +1056,7 @@
     <h2>Ada SM (AD102, 2022)</h2>
     <p>Ada is the consumer/workstation cousin of Hopper, sharing the timeline (2022) but a different SM emphasis: graphics first, then ML.</p>
 
-    <h3>4th-generation RT cores</h3>
+    <h3>3rd-generation RT cores</h3>
     <ul>
         <li><strong>Opacity micromaps</strong> &mdash; a compact representation of which sub-triangles of a primitive are opaque, so the BVH traversal can short-circuit alpha-test queries in hardware.</li>
         <li><strong>Displaced micro-meshes</strong> &mdash; per-triangle displacement maps stored in the BVH, allowing very dense geometry without blowing up the vertex stage.</li>
@@ -1086,7 +1086,7 @@
         <li><strong>NVFP4</strong> (NVIDIA variant) &mdash; finer 16-element blocks with an FP8 E4M3 scale plus a per-tensor FP32 scale. More accurate than MX-FP4 and the default FP4 datatype in TensorRT-LLM and the Transformer Engine.</li>
         <li><strong>MX-FP6</strong> &mdash; same OCP block idea, 6-bit elements, 32-element blocks. Useful where FP4 loses too much accuracy.</li>
         <li><strong>FP8 (E4M3, E5M2)</strong> &mdash; carried forward from Hopper.</li>
-        <li>Throughput per SM (FP8) vs Hopper: ~2.5&times;. The FP4 path roughly doubles that again where applicable.</li>
+        <li>Throughput per SM (FP8) vs Hopper: ~2&times; (4.5 PFLOPS / 148 SMs vs 1.98 PFLOPS / 132 SMs). The FP4 path roughly doubles that again where applicable.</li>
     </ul>
 
     <h3>2nd-generation Transformer Engine</h3>
@@ -1102,14 +1102,14 @@
     <ul>
         <li><strong>256 KB</strong> unified L1+shared per SM (same as Hopper).</li>
         <li>256 KB register file per SM (unchanged since Volta).</li>
-        <li>Two reticle-limit dies per package, 148 SMs/die, joined by a 10 TB/s NVHS link presented as one logical GPU.</li>
+        <li>Two reticle-limit dies per package, 148 SMs enabled in total (74 per die), joined by the 10 TB/s NV-HBI link presented as one logical GPU.</li>
     </ul>
 </section>
 
 <section class="slide" id="slide-10">
     <div class="slide-number">10</div>
     <h2>Resource Growth Visualised</h2>
-    <p>Per-SM resources across six families. Register file size has been frozen at 256 KB since Volta &mdash; the action is in shared memory, tensor-core throughput, and per-tensor-core feature width. Tensor-core throughput is normalised to V100 = 1 in the lowest precision shipped on each generation (FP16 on Volta/Turing, BF16 on Ampere/Hopper, FP8 on Blackwell).</p>
+    <p>Per-SM resources across six families. Register file size has been frozen at 256 KB since Volta &mdash; the action is in shared memory, tensor-core throughput, and per-tensor-core feature width. Tensor-core throughput is dense, per SM per clock, normalised to V100 = 1, in the lowest floating-point precision shipped on each generation (FP16 on Volta/Turing, BF16 on Ampere, FP8 on Hopper, FP4 on Blackwell); the tensor-core bars use a log<sub>2</sub> height scale.</p>
 
     <div class="canvas-wrap">
         <svg viewBox="0 0 760 360" width="760" height="360" xmlns="http://www.w3.org/2000/svg">
@@ -1169,23 +1169,23 @@
             <text x="470" y="352" class="lbl" text-anchor="middle">GA100</text>
             <rect x="448" y="160" width="14" height="160" class="br"/><text x="455" y="156" class="val" text-anchor="middle">256</text>
             <rect x="466" y="200" width="14" height="120" class="bs"/><text x="473" y="196" class="val" text-anchor="middle">192</text>
-            <rect x="484" y="256" width="14" height="64"  class="bt"/><text x="491" y="252" class="val" text-anchor="middle">4.0</text>
+            <rect x="484" y="288" width="14" height="32"  class="bt"/><text x="491" y="284" class="val" text-anchor="middle">2</text>
 
             <!-- Hopper group, x base 545 -->
             <text x="570" y="338" class="lbl" text-anchor="middle">Hopper</text>
             <text x="570" y="352" class="lbl" text-anchor="middle">GH100</text>
             <rect x="548" y="160" width="14" height="160" class="br"/><text x="555" y="156" class="val" text-anchor="middle">256</text>
             <rect x="566" y="160" width="14" height="160" class="bs"/><text x="573" y="156" class="val" text-anchor="middle">256</text>
-            <rect x="584" y="224" width="14" height="96"  class="bt"/><text x="591" y="220" class="val" text-anchor="middle">24</text>
-            <text x="591" y="208" class="anno" text-anchor="middle">1st FP8</text>
+            <rect x="584" y="256" width="14" height="64"  class="bt"/><text x="591" y="252" class="val" text-anchor="middle">8</text>
+            <text x="591" y="240" class="anno" text-anchor="middle">1st FP8</text>
 
             <!-- Blackwell group, x base 645 -->
             <text x="670" y="338" class="lbl" text-anchor="middle">Blackwell</text>
             <text x="670" y="352" class="lbl" text-anchor="middle">B200</text>
             <rect x="648" y="160" width="14" height="160" class="br"/><text x="655" y="156" class="val" text-anchor="middle">256</text>
             <rect x="666" y="160" width="14" height="160" class="bs"/><text x="673" y="156" class="val" text-anchor="middle">256</text>
-            <rect x="684" y="170" width="14" height="150" class="bt"/><text x="691" y="166" class="val" text-anchor="middle">60</text>
-            <text x="691" y="154" class="anno" text-anchor="middle">1st FP4</text>
+            <rect x="684" y="224" width="14" height="96" class="bt"/><text x="691" y="220" class="val" text-anchor="middle">~32</text>
+            <text x="691" y="208" class="anno" text-anchor="middle">1st FP4</text>
         </svg>
     </div>
 
@@ -1263,7 +1263,7 @@
                 schedulers: 4, fp32: 128, int32: 64, fp64: 2, sfu: 16,
                 tc: 4, tcGen: '4th gen (FP8 E4M3 / E5M2)',
                 regKB: 256, shmemL1KB: 128,
-                feature: '4th-gen RT cores (opacity micromaps, displaced micro-meshes). FP8 across the family (CC 8.9). No TMA / clusters / DSMEM.',
+                feature: '3rd-gen RT cores (opacity micromaps, displaced micro-meshes). FP8 across the family (CC 8.9). No TMA / clusters / DSMEM.',
                 showTC: true, showINT: true, showRT: true
             },
             hopper: {
